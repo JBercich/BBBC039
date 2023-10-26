@@ -6,8 +6,9 @@ Created on Wed Aug 17 22:19:21 2022
 """
 
 import torch
-from torch.utils.data import DataLoader
 from testloader import GTSRB_Test_Loader
+from torch.utils.data import DataLoader
+
 from evaluation import evaluate
 
 if __name__ == '__main__':

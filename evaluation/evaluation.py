@@ -2,8 +2,10 @@
 """
 Created on Wed Aug 17 21:23:37 2022
 """
-import torch
 import numpy as np
+import torch
+
+
 def evaluate(model, testloader):
     """
     Parameters
