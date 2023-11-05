@@ -1,4 +1,12 @@
 \section{Discussion}
-\label{sec:discussion}
 
-Work in progress.
+Experimental results yielded key insights into important considerations targeted to designing a rapid iterable deep-learning architecture for effective instance segmentation learning tasks with high performance and address low-scale data availability.
+
+Impressive results from the hyperparameter tuned U-Net DLA model already demonstrates comparative success to other contemporary research implementations for nuclei segmentation with very few ablations performed for model tuning. Although the selected model is quite large at approximately 31M training parameters, this can be quite restrictive across all research settings, but smaller $c_{1;in}=32,16$ networks did not demonstrate excessive loss in performance. This indicated that a low parameterised network with a simplified U-Net DLA design can be effective with minimal model iterations and be highly applicable for instance segmentation challenges. 
+
+Analysis of the modified RandAugment policy with specialised augmentation operations for segmentation image data was performed with a grid-search of 44 hyperparameter  configurations. More intelligent search strategies can efficiently isolate the selected combination of $n,m$ and reduce this search space further. But with the small number of trained instances, there was a clear increase in relative performance from benchmarked baselines despite the only having 3 target classes with contextually "simple" training instances. Translated to other more complex tasks, this result is expected to show more impressive outcomes.
+
+Interestingly, the trade-off between network size and the augmentation policies was less expected which is likely a result of the simple dataset target masks which differs significantly from CIFAR-100 or ImageNet datasets that RandAugment was initially designed for. This is important to consider in future work when implemented augmentation policies for low-scale and contextually different datasets, further emphasising the importance of reduced search spaces for policy optimisation.
+
+The difference between the 3-channel instance segmentation and binary semantic segmentation tasks is also quite interest considering the large discrepancies between difference evaluative metrics. This research revealed the importance of set-weighted metrics such as Dice and AJI for image segmentation evaluation over pixel-wise measures of accuracy and $F_1$ scores. These measures better capture generalised trends for classifying different regions and can be paired with other measures such as the coverage error to gain further insight into certain patterns of inference.
+
