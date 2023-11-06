@@ -143,7 +143,7 @@ venv.bak/
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
+`
 # Pyre type checker
 .pyre/
 
@@ -161,7 +161,11 @@ cython_debug/
 #.idea/
 
 # Dataset directories
-bbbc039
+datasets
+images
+labels
+metadata
+mirrors
 
 # Cached torch models
 *.ckpt
