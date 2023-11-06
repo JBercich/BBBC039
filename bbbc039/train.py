@@ -16,7 +16,7 @@ from torchvision.transforms import InterpolationMode, Resize
 from bbbc039.modules import BBBC039DataModule, UNetDLAModule
 
 SEED: int = 42
-PROJECT_NAME: str = "BBBC039-Segmentation"
+PROJECT_NAME: str = "BBBC039-UNetDLA"
 LOGGING_DIRECTORY: str = "./logs"
 TRAIN_EPOCHS: int = 10
 BATCH_SIZE: int = 8
