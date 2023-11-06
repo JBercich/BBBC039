@@ -2,16 +2,18 @@
 # -*- coding:utf-8 -*-
 
 import random
-from abc import ABC, abstractmethod
+from abc import ABC, abstractstaticmethod
 from typing import Callable
 
-from torch import Tensor
+from torch import Tensor, cat
 from torchvision.transforms import (
     CenterCrop,
+    ColorJitter,
     Compose,
     RandomAffine,
     RandomHorizontalFlip,
     RandomVerticalFlip,
+    functional,
 )
 
 
@@ -26,45 +28,83 @@ class RandAugmentSegmentation:
     """
 
     class Operation(ABC):
-        @abstractmethod
-        def __init__(self, m: float, image: Tensor) -> Callable:
+        @abstractstaticmethod
+        def build(m: float, image: Tensor) -> Callable:
             return None
 
     class HorizontalFlip(Operation):
-        def __init__(self, m: float, image: Tensor) -> Callable:
+        @staticmethod
+        def build(m: float, image: Tensor) -> Callable:
             return RandomHorizontalFlip(m)
 
     class VerticalFlip(Operation):
-        def __init__(self, m: float, image: Tensor) -> Callable:
+        @staticmethod
+        def build(m: float, image: Tensor) -> Callable:
             return RandomVerticalFlip(m)
 
     class CentreCrop(Operation):
-        def __init__(self, m: float, image: Tensor) -> Callable:
-            return CenterCrop((image.shape[-2] * (1 - m), image.shape[-1] * (1 - m)))
+        @staticmethod
+        def build(m: float, image: Tensor) -> Callable:
+            h, w = image.shape[-2:]
+            phi = random.randint(90, 100) / 100
+            return CenterCrop((int(h * (1 - m) * phi), int(w * (1 - m) * phi)))
 
     class Translate(Operation):
-        def __init__(self, m: float, image: Tensor) -> Callable:
+        @staticmethod
+        def build(m: float, image: Tensor) -> Callable:
             return RandomAffine(0, translate=(m, m))
 
     class ShearX(Operation):
-        def __init__(self, m: float, image: Tensor) -> Callable:
-            return RandomAffine(0, shear=(180 * m, 180 * m, 0, 0))
+        @staticmethod
+        def build(m: float, image: Tensor) -> Callable:
+            return RandomAffine(
+                0, shear=(random.randint(0, int(90 * m)), int(90 * m), 0, 0)
+            )
 
     class ShearY(Operation):
-        def __init__(self, m: float, image: Tensor) -> Callable:
-            return RandomAffine(0, shear=(0, 0, 180 * m, 180 * m))
-
-    class RotateR(Operation):
-        def __init__(self, m: float, image: Tensor) -> Callable:
-            return RandomAffine((0, 360 * m))
-
-    class RotateL(Operation):
-        def __init__(self, m: float, image: Tensor) -> Callable:
-            return RandomAffine((360 * m, 0))
+        @staticmethod
+        def build(m: float, image: Tensor) -> Callable:
+            return RandomAffine(
+                0, shear=(0, 0, random.randint(0, int(90 * m)), int(90 * m))
+            )
 
     class Rescale(Operation):
-        def __init__(self, m: float, image: Tensor) -> Callable:
+        @staticmethod
+        def build(m: float, image: Tensor) -> Callable:
             return RandomAffine(0, scale=(1 - m, 1))
+
+    class Rotate(Operation):
+        @staticmethod
+        def build(m: float, image: Tensor) -> Callable:
+            return RandomAffine((random.randint(0, int(360 * m)), int(360 * m)))
+
+    class Brightness(Operation):
+        @staticmethod
+        def build(m: float, image: Tensor) -> Callable:
+            phi: int = 10
+            return ColorJitter(brightness=m)
+
+    class Saturation(Operation):
+        @staticmethod
+        def build(m: float, image: Tensor) -> Callable:
+            return ColorJitter(saturation=m)
+
+    class Contrast(Operation):
+        @staticmethod
+        def build(m: float, image: Tensor) -> Callable:
+            return ColorJitter(contrast=m)
+
+    class Solarize(Operation):
+        @staticmethod
+        def build(m: float, image: Tensor) -> Callable:
+            return lambda img: functional.solarize(
+                img, threshold=max(random.random(), m)
+            )
+
+    class Hue(Operation):
+        @staticmethod
+        def build(m: float, image: Tensor) -> Callable:
+            return ColorJitter(hue=min(0.5, m * random.random()))
 
     OPERATIONS: list[Operation] = [
         HorizontalFlip,
@@ -73,18 +113,42 @@ class RandAugmentSegmentation:
         Translate,
         ShearX,
         ShearY,
-        RotateR,
-        RotateL,
         Rescale,
+        Rotate,
+    ]
+
+    IMAGE_OPERATIONS: list[Operation] = [
+        Brightness,
+        Saturation,
+        Contrast,
+        Solarize,
+        Hue,
     ]
 
     def __init__(self, n: int, m: float):
         self.n = n
         self.m = m
 
-    def __call__(self, image: Tensor) -> Tensor:
+    def __call__(self, image: Tensor = None, label: Tensor = None) -> Tensor:
+        # Collect random operations for both tensors and just for image
+        operation_count = self.n // 2
         random_operations: list[self.Operation] = []
-        for _ in range(self.n):
-            operation: Callable = random.choice(self.OPERATIONS)(self.m, image)
-            random_operations.append(operation)
-        return Compose(random_operations)(image)
+        for _ in range(operation_count):
+            op: Callable = random.choice(self.OPERATIONS).build(self.m, image)
+            random_operations.append(op)
+        random_image_operations: list[self.Operation] = []
+        for _ in range(self.n - operation_count):
+            op: Callable = random.choice(self.IMAGE_OPERATIONS).build(self.m, image)
+            random_image_operations.append(op)
+
+        # Apply operation depending on which tensors are provided
+        if image is not None and label is not None:
+            combined = cat((image.unsqueeze(0), label.unsqueeze(0)), 0)
+            return Compose(random_operations)(combined)
+        elif label is not None:
+            return Compose(random_operations)(label)
+        elif image is not None:
+            image = Compose(random_operations)(image)
+        else:
+            raise ValueError("at least one image or label must be augmented")
+        return Compose(random_image_operations)(image)

@@ -17,13 +17,12 @@ import skimage
 import torch
 import torchvision
 from PIL import Image
+from randaugment import RandAugmentSegmentation
 from torch import Tensor
 from torch.utils.data import Dataset
 from torchvision.transforms import *
 from torchvision.transforms import Compose, Normalize, ToTensor
 from tqdm.auto import tqdm
-
-from randaugment import RandAugmentSegmentation
 
 warnings.filterwarnings("ignore", category=UserWarning)
 

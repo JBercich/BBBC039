@@ -7,22 +7,18 @@ from datetime import datetime
 import lightning.pytorch as pl
 import torch
 import torchvision
+import wandb
+from dataset import BBBC039Segmentation
 from lightning.pytorch import LightningModule, Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.loggers.wandb import WandbLogger
 from torch.utils.data import DataLoader
-from torchmetrics.classification import (
-    Dice,
-    MulticlassAccuracy,
-    MulticlassF1Score,
-    MultilabelCoverageError,
-    MulticlassJaccardIndex,
-)
+from torchmetrics.classification import (Dice, MulticlassAccuracy,
+                                         MulticlassF1Score,
+                                         MulticlassJaccardIndex,
+                                         MultilabelCoverageError)
 from torchvision.transforms import InterpolationMode, Resize
-import wandb
-
-from dataset import BBBC039Segmentation
 
 
 class UNet(LightningModule):
