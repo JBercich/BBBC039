@@ -5,7 +5,6 @@ import os
 import zipfile
 from enum import Enum, unique
 from pathlib import Path
-from typing import Callable
 
 import numpy as np
 import numpy.typing as npt

@@ -5,9 +5,12 @@ import torch
 import wandb
 from lightning.pytorch import LightningModule
 from lightning.pytorch.loggers import WandbLogger
-from torchmetrics.classification import (Dice, MulticlassAccuracy,
-                                         MulticlassF1Score,
-                                         MulticlassJaccardIndex)
+from torchmetrics.classification import (
+    Dice,
+    MulticlassAccuracy,
+    MulticlassF1Score,
+    MulticlassJaccardIndex,
+)
 
 NUM_CLASSES: int = 3
 

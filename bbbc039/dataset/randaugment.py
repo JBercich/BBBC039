@@ -6,9 +6,15 @@ from abc import ABC, abstractstaticmethod
 from typing import Callable
 
 from torch import Tensor, cat
-from torchvision.transforms import (CenterCrop, ColorJitter, Compose,
-                                    RandomAffine, RandomHorizontalFlip,
-                                    RandomVerticalFlip, functional)
+from torchvision.transforms import (
+    CenterCrop,
+    ColorJitter,
+    Compose,
+    RandomAffine,
+    RandomHorizontalFlip,
+    RandomVerticalFlip,
+    functional,
+)
 
 
 class RandAugmentSegmentation:
