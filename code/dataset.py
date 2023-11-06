@@ -2,11 +2,8 @@
 # -*- coding:utf-8 -*-
 
 import os
-import random
-import shutil
-import warnings
 import zipfile
-from enum import Enum, auto, unique
+from enum import Enum, unique
 from pathlib import Path
 from typing import Callable
 
@@ -14,30 +11,39 @@ import numpy as np
 import numpy.typing as npt
 import requests
 import skimage
-import torch
-import torchvision
 from PIL import Image
-from randaugment import RandAugmentSegmentation
-from torch import Tensor
 from torch.utils.data import Dataset
-from torchvision.transforms import *
-from torchvision.transforms import Compose, Normalize, ToTensor
+from torchvision.transforms import Normalize, ToTensor
 from tqdm.auto import tqdm
 
-warnings.filterwarnings("ignore", category=UserWarning)
+from randaugment import RandAugmentSegmentation
+
+MIN_NUCLEI_SIZE: int = 25
+PIXEL_LEN_SPLIT: int = 232
 
 
 class BBBC039Segmentation(Dataset):
-    """BBBC039 dataset module."""
+    """
+    BBBC039 dataset for nuclei instance segmentation.
 
-    dataset_name: str = "bbbc039"
-    images_ext: str = ".tif"
-    labels_ext: str = ".png"
-    background_class: int = 0
-    nucleus_class: int = 1
-    boundary_class: int = 2
-    min_nuclei_size: int = 25
-    pixel_split: int = 232
+    Dataset Summary:
+        The dataset was made using a Hoechst stain and fluorescence microscopy on high-
+        throughput U2OS histopathological nuclear phenotypes from 200 different fields
+        of view. Each image contains labelled nuceli with annotated overlapping regions
+        for distinguishing nuclei boundaries within a 16-bit 520x696 frame. Metadata
+        splits for training, validation and testing are provided.
+
+    Dataset Source:
+        This dataset was source from https://bbbc.broadinstitute.org/BBBC039. BBBC039v1
+        Caicedo et al. 2018, available from the Broad Bioimage Benchmark Collection
+        [Ljosa et al., Nature Methods, 2012].
+    """
+
+    DATASET_NAME: str = "bbbc039"
+    IMAGES_EXT: str = ".tif"
+    LABELS_EXT: str = ".png"
+    SUBSETS: list[str] = ["train", "val", "test"]
+    MAX_IMAGE_PIXEL: int = 4095
 
     @unique
     class Mirror(tuple, Enum):
@@ -61,70 +67,35 @@ class BBBC039Segmentation(Dataset):
             "https://data.broadinstitute.org/bbbc/BBBC039/metadata.zip",
         )
 
-    @unique
-    class Subset(str, Enum):
-        """
-        Allowed BBBC039 segmentation subsets. These correspond to the available dataset
-        metadata ID partitions and are publically available in the dataset metadata. For
-        convenience, the different partitions are given in separate subset directories
-        for both images and labels.
-        """
-
-        Train = "train"
-        Val = "val"
-        Test = "test"
-
-    def __init__(
-        self,
-        root: str,
-        subset: str = Subset.Train.value,
-        force: bool = False,
-        transform: Callable = None,
-        rand_augment: bool = False,
-        rand_augment_n: int = None,
-        rand_augment_m: float = None,
-    ):
+    def __init__(self, root: str, subset: str = "train", transform: Callable = None):
         super().__init__()
-        self.rand_augment = rand_augment
-        self.rand_augment_n = rand_augment_n
-        self.rand_augment_m = rand_augment_m
-        if self.rand_augment:
-            assert self.rand_augment_n is not None and self.rand_augment_m is not None
 
-        # Validate input arguments
-        if subset not in self.Subset._value2member_map_:
-            raise ValueError("subset '{subset}` invalid: select [train, val, test]")
-        self.transform = transform
+        # Validate parameters
+        if subset not in self.SUBSETS:
+            raise ValueError(f"subset '{self.subset}` invalid: select {self.SUBSETS}")
 
-        # Setup the root directory path
-        self.root = Path(root).resolve()
-        if self.root.name != self.dataset_name:
-            self.root = self.root / self.dataset_name
+        # Setup instance attributes
+        self.root: Path = Path(root).resolve()
+        if self.root.name != self.DATASET_NAME:
+            self.root: Path = self.root / self.DATASET_NAME
         self.root.mkdir(parents=True, exist_ok=True)
-        self.images_dir = self.root / "images"
-        self.labels_dir = self.root / "labels"
+        self.subset, self.transform = subset, transform
+        self.images_dir, self.labels_dir = self.root / "images", self.root / "labels"
 
         # Download and extract required dataset files
-        self.mirror_directory = self.root / "mirrors"
-        self.mirror_directory.mkdir(exist_ok=True)
+        mirror_directory: Path = self.root / "mirrors"
+        mirror_directory.mkdir(exist_ok=True)
         for mirror in self.Mirror:
             filename, url = mirror.value
-            filepath = self.mirror_directory / filename
+            filepath: Path = mirror_directory / filename
             if not filepath.exists():
                 self._download(url, filepath)
-            if not (self.root / filename).with_suffix("").exists() or force:
-                if "masks" in filename and self.labels_dir.exists() and not force:
+            if not (self.root / filename).with_suffix("").exists():
+                if "masks" in filename and self.labels_dir.exists():
                     continue
                 self._extract(filepath, self.root)
-
-        # Handling mask and label directory renaming
-        masks_dir = self.root / "masks"
-        if force and self.labels_dir.exists():
-            shutil.rmtree(self.labels_dir)
-        if not self.labels_dir.exists():
-            os.rename(masks_dir, self.labels_dir)
-        if masks_dir.exists():
-            shutil.rmtree(masks_dir)
+                if "masks" in filename:
+                    os.rename(self.root / "masks", self.labels_dir)
 
         # Extract dataset subset ids
         def _get_subset_ids(subset_filepath: Path) -> list[str]:
@@ -133,54 +104,49 @@ class BBBC039Segmentation(Dataset):
             return subset_ids
 
         metadata_dir = self.root / "metadata"
-        subsets = zip(
-            self.Subset._value2member_map_.keys(),
-            [
-                _get_subset_ids(metadata_dir / "training.txt"),
-                _get_subset_ids(metadata_dir / "validation.txt"),
-                _get_subset_ids(metadata_dir / "test.txt"),
-            ],
-        )
-        subsets = [i for i in subsets]
+        subset_ids_list = [
+            ("train", _get_subset_ids(metadata_dir / "training.txt")),
+            ("val", _get_subset_ids(metadata_dir / "validation.txt")),
+            ("test", _get_subset_ids(metadata_dir / "test.txt")),
+        ]
 
         # Create subset directories for images and labels
         for dirpath in [self.images_dir, self.labels_dir]:
-            for subset_, ids in subsets:
-                directory = dirpath / subset_
+            for subset_name, ids in subset_ids_list:
+                directory = dirpath / subset_name
                 directory.mkdir(exist_ok=True)
                 for file in dirpath.iterdir():
                     if file.with_suffix("").name in ids:
                         file.rename(directory / file.name)
 
         # Collect preprocessing images and labels
-        preprocess_images, preprocess_labels = [], []
-        for subset_ in self.Subset:
-            for file in (self.images_dir / subset_.value).iterdir():
-                if any([file.with_suffix("").name in sset[1] for sset in subsets]):
-                    preprocess_images.append(file)
-            for file in (self.labels_dir / subset_.value).iterdir():
-                if any([file.with_suffix("").name in sset[1] for sset in subsets]):
-                    preprocess_labels.append(file)
-        preprocess_images = sorted(preprocess_images)
-        preprocess_labels = sorted(preprocess_labels)
-        preprocess_queue = zip(preprocess_images, preprocess_labels)
+        process_images, process_labels = [], []
+        for subset_name in self.SUBSETS:
+            for f in (self.images_dir / subset_name).iterdir():
+                if any([f.with_suffix("").name in sset[1] for sset in subset_ids_list]):
+                    process_images.append(f)
+            for f in (self.labels_dir / subset_name).iterdir():
+                if any([f.with_suffix("").name in sset[1] for sset in subset_ids_list]):
+                    process_labels.append(f)
+        process_images, process_labels = sorted(process_images), sorted(process_labels)
+        process_queue = [i for i in zip(process_images, process_labels)]
 
-        if len(preprocess_images):
+        if len(process_queue):
             print(f"Preprocessing images and labels {self.root}")
 
         # Perform preprocessing operations
         idx = 1
-        for image_path, label_path in preprocess_queue:
-            process_queue = zip(
-                self._split_array(np.array(Image.open(image_path)), self.pixel_split),
-                self._split_array(np.array(Image.open(label_path)), self.pixel_split),
+        for image_path, label_path in process_queue:
+            queue = zip(
+                self._split_array(np.array(Image.open(image_path)), PIXEL_LEN_SPLIT),
+                self._split_array(np.array(Image.open(label_path)), PIXEL_LEN_SPLIT),
             )
-            for image, label in process_queue:
+            for image, label in queue:
                 filename = "{:08d}".format(idx)
                 image = self._preprocess_image(image)
-                label = self._preprocess_label(label, self.min_nuclei_size)
-                image_file = image_path.with_name(filename).with_suffix(self.images_ext)
-                label_file = label_path.with_name(filename).with_suffix(self.labels_ext)
+                label = self._preprocess_label(label)
+                image_file = image_path.with_name(filename).with_suffix(self.IMAGES_EXT)
+                label_file = label_path.with_name(filename).with_suffix(self.LABELS_EXT)
                 Image.fromarray(image).save(image_file)
                 Image.fromarray(label).save(label_file)
                 idx += 1
@@ -216,7 +182,7 @@ class BBBC039Segmentation(Dataset):
                 pbar.update(1024)
 
     @staticmethod
-    def _extract(archive: Path, output_directory: Path) -> None:
+    def _extract(archive: Path, output_directory: Path):
         """
         Extract an archive from a Posix Path into an output directory. Any extracted
         archive file that is given will overwrite any existing archive contents in the
@@ -252,20 +218,38 @@ class BBBC039Segmentation(Dataset):
                 yield cblock
 
     @staticmethod
-    def _preprocess_image(image: npt.NDArray) -> npt.NDArray:
-        # Normalise between 0 and 1
-        image = image / 4095
-        # Convert to 3-channel uint RGB images
-        image = (np.stack((image,) * 3, axis=-1) * 255).astype(np.uint8)
-        return image
+    def _preprocess_image(image: npt.NDArray, mp: int = MAX_IMAGE_PIXEL) -> npt.NDArray:
+        """
+        Normalise images between 0-1 based on the dataset maximum pixel value, convert
+        the image to 3-channel RGB by duplicate the grayscale pixel value and return as
+        an 8-bit uint image array.
+
+        Args:
+            image (npt.NDArray): Image being preprocessed.
+            mp (int, optional): Maximum pixel value. Defaults to MAX_IMAGE_PIXEL.
+
+        Returns:
+            npt.NDArray: Preprocessed image array.
+        """
+        return (np.stack((image / mp,) * 3, axis=-1) * 255).astype(np.uint8)
 
     @staticmethod
-    def _preprocess_label(label: npt.NDArray, min_nuclei_size: int) -> npt.NDArray:
+    def _preprocess_label(label: npt.NDArray, sz: int = MIN_NUCLEI_SIZE) -> npt.NDArray:
+        """
+        Remove micronuclei and added label channels, extract boundaries and create new
+        label array with 3-channel background, nuclei and boundary classes.
+
+        Args:
+            label (npt.NDArray): Label to be preprocessed.
+            sz (int, optional): Minimum size of nuclei. Defaults to MIN_NUCLEI_SIZE.
+
+        Returns:
+            npt.NDArray: Preprocessed nuclei.
+        """
         # Remove micronuclei, label nuclei, remove excess channels
-        label = skimage.morphology.remove_small_objects(
-            skimage.morphology.label(label[:, :, 0]),
-            min_size=min_nuclei_size,
-        )
+        label = skimage.morphology.label(label[:, :, 0])
+        if label.max() > 1:
+            label = skimage.morphology.remove_small_objects(label, min_size=sz)
         # Extract nuclei boundaries
         bounds = skimage.segmentation.find_boundaries(label)
         # Create new nuclei label mask
@@ -275,39 +259,44 @@ class BBBC039Segmentation(Dataset):
         new_label[bounds == 1, 2] = 1
         return new_label.astype(np.uint8)
 
-    def __getitem__(self, idx: int):
-        # Read in and perform the required preprocessing actions
+    def __getitem__(self, idx: int) -> tuple:
+        """
+        Load image and label files into memory, perform any required pre-processing
+        operations and given transforms to the images and labels.
+
+        Args:
+            idx (int): Index within the given subset collection.
+
+        Returns:
+            tuple: Loaded and transformed image and label tensors.
+        """
+        # Read in and perform required preparation transformations
         image, label = Image.open(self.image_ids[idx]), Image.open(self.label_ids[idx])
         image = Normalize((0.0601831,) * 3, (0.051409,) * 3)(ToTensor()(image))
         label = (ToTensor()(label) * 255).round()
-        # Apply transformations and coerce image and mask into tensors
-        if self.rand_augment:
-            augment = RandAugmentSegmentation(self.rand_augment_n, self.rand_augment_m)
-            joined = torch.cat((image.unsqueeze(0), label.unsqueeze(0)), 0)
-            transformed_joined = augment(joined)
-            image = transformed_joined[0]
-            label = transformed_joined[1]
-        image = self.transform(image) if self.transform else image
-        label = self.transform(label) if self.transform else label
+        # Apply additional transformations
+        if self.transform is not None:
+            if isinstance(self.transform, RandAugmentSegmentation):
+                return self.transform(image, label)
+            else:
+                return self.transform(image), self.transform(label)
         return image, label
 
     def __len__(self):
+        # Required dunder function for datasets
         return len(self.image_ids)
 
     def to_numpy(self):
         """
         Iterate and load each image and label (PNGs) into numpy arrays for the given
         subset of the dataset. The dataset will perform any transforms that are defined
-        and convert each loaded image/label into a numpy array.
+        and convert each loaded image/label into a numpy array. Any resizing transforms
+        will cause an error.
 
         Returns:
             tuple: Image and label numpy arrays, note that it must be the label PNGs.
         """
-        loaded_images = []
-        loaded_labels = []
+        loaded_images, loaded_labels = [], []
         for image, label in self:
-            # Load and transform the image and masks to numpy arrays
-            loaded_images.append(image.numpy())
-            loaded_labels.append(label.numpy())
-        # Convert the final lists to arrays
+            loaded_images.append(image.numpy()), loaded_labels.append(label.numpy())
         return np.array(loaded_images), np.array(loaded_labels)
