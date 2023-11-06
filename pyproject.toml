@@ -3,7 +3,7 @@
 #
 
 [tool.poetry]
-name = "bbbc039segmentation"
+name = "bbbc039"
 version = "0.0.0"
 description = "BBBC039 Nuclei Instance Segmentation: Analysis of U-Net DLA model performance and modified RandAugment hyperparameter tuning"
 authors = ["Josh Bercich <joshbercich@gmail.com>"]
