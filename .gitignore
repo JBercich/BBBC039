@@ -161,7 +161,11 @@ cython_debug/
 #.idea/
 
 # Dataset directories
-bbbc039
+datasets
+images
+labels
+metadata
+mirrors
 
 # Cached torch models
 *.ckpt
