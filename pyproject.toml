@@ -1,11 +1,21 @@
 # pyproject.toml
-#       laksdnalksdn
-#
+#       Project dependency management is done using `poetry` for easy installation and
+#       controlling module consistency for the project source code. The project is not
+#       any form of package and so distribution details are not important in this file
+#       such as the version/authors/readme. All dependencies are defined under the one
+#       depdency group to make it easy for any external usage of the repo.
+
+# Usage
+#       ```
+#       $ pip install poetry
+#       $ poetry install
+#       $ poetry run python train.py
+#       ```
 
 [tool.poetry]
 name = "bbbc039"
 version = "0.0.0"
-description = "BBBC039 Nuclei Instance Segmentation: Analysis of U-Net DLA model performance and modified RandAugment hyperparameter tuning"
+description = "BBBC039 Nuclei Instance Segmentation."
 authors = ["Josh Bercich <joshbercich@gmail.com>"]
 readme = "README.md"
 
