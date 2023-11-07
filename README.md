@@ -18,15 +18,15 @@ Beyond the reproducible implementation provided in the `bbbc039` directory using
 
 - Inference examples during the training process of two RandAugment models for the medium network size. Images are from different training epochs.
 
-![Epoch inference images](figures/epoch-inference.png)
+![Epoch inference images](figures/epoch-inference.png | width=70)
 
 - Attached ground truth labels to the previous model at each respectively logged epoch.
 
-![Epoch label images](figures/epoch-labels.png)
+![Epoch label images](figures/epoch-labels.png | width=70)
 
 - Example RandAugment augmentations performed for varying hyperparameters *n*, the number of applied operations, and *m*, the magnitude of each operation.
 
-![RandAugment examples](figures/randaugment.png)
+![RandAugment examples](figures/randaugment.png | width=80)
 
 ## Usage
 
