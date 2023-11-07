@@ -16,7 +16,7 @@ from torchvision.transforms import InterpolationMode, Resize
 from bbbc039.modules import BBBC039DataModule, UNetDLAModule
 
 SEED: int = 42
-PROJECT_NAME: str = "BBBC039-UNetDLA"
+PROJECT_NAME: str = "BBBC039"
 LOGGING_DIRECTORY: str = "./logs"
 TRAIN_EPOCHS: int = 10
 BATCH_SIZE: int = 8
@@ -129,14 +129,22 @@ def run_model(root: str, hparams: Hyperparameters, epochs: int, batch_size: int)
     wandb.finish()
 
 
+def has_completed(config_a: dict, config_b: dict) -> bool:
+    # Verify if the configuration A is contained within configuration B
+    for k, v in config_a.items():
+        if k not in config_b or config_b[k] != v:
+            return False
+    return True
+
+
 if __name__ == "__main__":
     # Main runtime hyperparameter grid search
-    for hparams in sorted(hparams_grid, reverse=True):
+    for hparams in hparams_grid:
         # Completed runs are skipped; experiement is performed
         hparams_dict: dict = dataclasses.asdict(hparams)
         completed_runs: list = wandb.Api().runs(PROJECT_NAME)
         print(hparams)
-        if any([hparams_dict == run.config for run in completed_runs]):
+        if any([has_completed(hparams_dict, run.config) for run in completed_runs]):
             print(f"Existing run found: {len(completed_runs)} completed")
             continue
         run_model(args.datapath, hparams, TRAIN_EPOCHS, BATCH_SIZE)

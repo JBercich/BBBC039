@@ -7,7 +7,6 @@ from typing import Callable
 
 from torch import Tensor, cat
 from torchvision.transforms import (
-    CenterCrop,
     ColorJitter,
     Compose,
     RandomAffine,
@@ -41,13 +40,6 @@ class RandAugmentSegmentation:
         @staticmethod
         def build(m: float, image: Tensor) -> Callable:
             return RandomVerticalFlip(m)
-
-    class CentreCrop(Operation):
-        @staticmethod
-        def build(m: float, image: Tensor) -> Callable:
-            h, w = image.shape[-2:]
-            phi = random.randint(90, 100) / 100
-            return CenterCrop((int(h * (1 - m) * phi), int(w * (1 - m) * phi)))
 
     class Translate(Operation):
         @staticmethod
@@ -109,7 +101,6 @@ class RandAugmentSegmentation:
     OPERATIONS: list[Operation] = [
         HorizontalFlip,
         VerticalFlip,
-        CentreCrop,
         Translate,
         ShearX,
         ShearY,
