@@ -2,7 +2,7 @@
 
 ## Experiment Summary
 
-Experimental analysis of UNet-DLA instance segmentation models and segmentation-refined RandAugment. Ablations seek to assert effective segmentation performance supported by a simple augmentation strategy with reduced need for architecture ablations for reduced experimental iteration development, improved automation capacity, and greater multi-task capacity. Experimental insights target limitations in low-scale dataset availability and diversity through minimally complex uniquely refined augmentation policies. Lowly-modified encoder-decoder architecture performance from U-Net with Deep Layer Aggregation can support better performance results without testing against multiple architectures and obfuscated rapid iterative experiementation across more research settings in the biomedical field. The primary key insights from this experiment include:
+Experimental analysis of UNet instance segmentation models and segmentation-refined RandAugment. Ablations seek to assert effective segmentation performance supported by a simple augmentation strategy with reduced need for architecture ablations for reduced experimental iteration development, improved automation capacity, and greater multi-task capacity. Experimental insights target limitations in low-scale dataset availability and diversity through minimally complex uniquely refined augmentation policies. Lowly-modified encoder-decoder architecture performance from U-Net with Deep Layer Aggregation can support better performance results without testing against multiple architectures and obfuscated rapid iterative experiementation across more research settings in the biomedical field. The primary key insights from this experiment include:
 
 - Augmentation policies have greater potential for more diverse multiclass challenges and yield higher test performance.
 
@@ -16,13 +16,11 @@ Experimental analysis of UNet-DLA instance segmentation models and segmentation-
 
 Beyond the reproducible implementation provided in the `bbbc039` directory using PyTorch, a [concise report](report/main.pdf) was written (6 pages), and all results were logged on a public [WnB experiment project](https://wandb.ai/joshbercich/BBBC039) where appropriate plots and artifacts can be accessed.
 
-- Inference examples during the training process of two RandAugment models for the medium network size. Images are from different training epochs.
+- Inference examples during the training process of two RandAugment models for the medium network size. Images are shown at different sequential training epoch validation stages.
 
 <p align="center" width="100%">
 <img src='figures/epoch-inference.png' width='400' align='center'>
 </p>
-
-- Attached ground truth labels to the previous model at each respectively logged epoch.
 
 <p align="center" width="100%">
 <img src='figures/epoch-labels.png' width='400' align='center'>
