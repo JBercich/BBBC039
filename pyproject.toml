@@ -31,7 +31,7 @@ numpy = "^1.25.2"
 pandas = "^2.1.2"
 tqdm = "^4.66.1"
 opencv-python = "^4.8.1.78"
-matplotlib = "^3.8.1"
+matplotlib = "^3.8.2"
 seaborn = "^0.13.0"
 
 [build-system]
